@@ -9,8 +9,6 @@ import {
 import { createRetrievalChain } from "langchain/chains/retrieval";
 import { createStuffDocumentsChain } from "langchain/chains/combine_documents";
 import { createHistoryAwareRetriever } from "langchain/chains/history_aware_retriever";
-import { RunnableWithMessageHistory } from "@langchain/core/runnables";
-import { ChatMessageHistory } from "langchain/stores/message/in_memory";
 import {
   START,
   END,
@@ -19,6 +17,13 @@ import {
   MessagesAnnotation,
   Annotation,
 } from "@langchain/langgraph";
+import {
+  BaseMessage,
+  HumanMessage,
+  AIMessage,
+  SystemMessage,
+} from "@langchain/core/messages";
+import { v4 as uuidv4 } from "uuid";
 
 import Selector from "@/class/selector/selector";
 
@@ -88,30 +93,38 @@ export async function POST(req: NextRequest) {
     ["human", "{input}"],
   ]);
 
-  const questionAnswerChain2 = await createStuffDocumentsChain({
+  const questionAnswerChain = await createStuffDocumentsChain({
     llm,
     prompt: qaPrompt,
   });
 
-  const ragChain2 = await createRetrievalChain({
+  const ragChain = await createRetrievalChain({
     retriever: historyAwareRetriever,
-    combineDocsChain: questionAnswerChain2,
+    combineDocsChain: questionAnswerChain,
   });
 
-  const demoEphemeralChatMessageHistoryForChain = new ChatMessageHistory();
+  let chatHistory: BaseMessage[] = [];
 
-  const conversationalRagChain = new RunnableWithMessageHistory({
-    runnable: ragChain2,
-    getMessageHistory: (_sessionId) => demoEphemeralChatMessageHistoryForChain,
-    inputMessagesKey: "input",
-    historyMessagesKey: "chat_history",
-    outputMessagesKey: "answer",
+  // chatHistory = chatHistory.concat([new HumanMessage(inputMessage)]);
+  const result = await ragChain.invoke({
+    input: inputMessage,
+    chat_history: chatHistory,
   });
 
-  const result = await conversationalRagChain.invoke(
-    { input: inputMessage },
-    { configurable: { sessionId: inputConfig } }
-  );
+  // const demoEphemeralChatMessageHistoryForChain = new ChatMessageHistory();
+
+  // const conversationalRagChain = new RunnableWithMessageHistory({
+  //   runnable: ragChain,
+  //   getMessageHistory: (_sessionId) => demoEphemeralChatMessageHistoryForChain,
+  //   inputMessagesKey: "input",
+  //   historyMessagesKey: "chat_history",
+  //   outputMessagesKey: "answer",
+  // });
+
+  // const result = await conversationalRagChain.invoke(
+  //   { input: inputMessage },
+  //   { configurable: { sessionId: inputConfig } }
+  // );
 
   const utterance_type = result.answer;
   const selector = new Selector();
@@ -327,14 +340,23 @@ export async function POST(req: NextRequest) {
 
   const app = workflow.compile({ checkpointer: new MemorySaver() });
 
-  const config = { configurable: { thread_id: inputConfig } };
+  const messages = [
+    new SystemMessage("you're a good assistant"),
+    new HumanMessage("hi! I'm bob"),
+    new AIMessage("hi!"),
+    new HumanMessage("I like vanilla ice cream"),
+    new AIMessage("nice"),
+    new HumanMessage("whats 2 + 2"),
+    new AIMessage("4"),
+    new HumanMessage("thanks"),
+    new AIMessage("no problem!"),
+    new HumanMessage("having fun?"),
+    new AIMessage("yes!"),
+  ];
+
+  const config = { configurable: { thread_id: uuidv4() } };
   const input = {
-    messages: [
-      {
-        role: "user",
-        content: inputMessage,
-      },
-    ],
+    messages: [...messages, new HumanMessage(inputMessage)],
     additinalContext: selectorDict[selector.selectedAction],
   };
   const output = await app.invoke(input, config);
