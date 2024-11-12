@@ -17,11 +17,7 @@ import {
   MessagesAnnotation,
   Annotation,
 } from "@langchain/langgraph";
-import {
-  BaseMessage,
-  HumanMessage,
-  AIMessage,
-} from "@langchain/core/messages";
+import { BaseMessage, HumanMessage, AIMessage } from "@langchain/core/messages";
 import { v4 as uuidv4 } from "uuid";
 
 import Selector from "@/class/selector/selector";
@@ -29,9 +25,6 @@ import DB from "@/class/DB/DB";
 
 export async function POST(req: NextRequest) {
   const { inputMessage, userName } = await req.json();
-
-  console.log(inputMessage);
-  console.log(userName);
 
   const db = new DB();
 
@@ -46,9 +39,7 @@ export async function POST(req: NextRequest) {
     console.error(error);
   }
 
-  console.log(data);
-
-  if (data){
+  if (data) {
     data.reverse();
   }
 
@@ -134,8 +125,6 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  console.log(chatHistory);
-  // chatHistory = chatHistory.concat([new HumanMessage(inputMessage)]);
   const result = await ragChain.invoke({
     input: inputMessage,
     chat_history: chatHistory,
