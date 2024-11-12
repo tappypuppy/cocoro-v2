@@ -21,16 +21,36 @@ import {
   BaseMessage,
   HumanMessage,
   AIMessage,
-  SystemMessage,
 } from "@langchain/core/messages";
 import { v4 as uuidv4 } from "uuid";
 
 import Selector from "@/class/selector/selector";
+import DB from "@/class/DB/DB";
 
 export async function POST(req: NextRequest) {
-  const { inputMessage, inputConfig } = await req.json();
+  const { inputMessage, userName } = await req.json();
 
   console.log(inputMessage);
+  console.log(userName);
+
+  const db = new DB();
+
+  const { data, error } = await db.supabaseClient
+    .from("chat_log")
+    .select("*")
+    .eq("user_name", userName)
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  if (error) {
+    console.error(error);
+  }
+
+  console.log(data);
+
+  if (data){
+    data.reverse();
+  }
 
   const llm = new ChatOpenAI({
     model: "gpt-4o-mini",
@@ -104,27 +124,22 @@ export async function POST(req: NextRequest) {
   });
 
   let chatHistory: BaseMessage[] = [];
+  if (data) {
+    chatHistory = data.map((chat) => {
+      if (chat.sender === "user") {
+        return new HumanMessage(chat.message);
+      } else {
+        return new AIMessage(chat.message);
+      }
+    });
+  }
 
+  console.log(chatHistory);
   // chatHistory = chatHistory.concat([new HumanMessage(inputMessage)]);
   const result = await ragChain.invoke({
     input: inputMessage,
     chat_history: chatHistory,
   });
-
-  // const demoEphemeralChatMessageHistoryForChain = new ChatMessageHistory();
-
-  // const conversationalRagChain = new RunnableWithMessageHistory({
-  //   runnable: ragChain,
-  //   getMessageHistory: (_sessionId) => demoEphemeralChatMessageHistoryForChain,
-  //   inputMessagesKey: "input",
-  //   historyMessagesKey: "chat_history",
-  //   outputMessagesKey: "answer",
-  // });
-
-  // const result = await conversationalRagChain.invoke(
-  //   { input: inputMessage },
-  //   { configurable: { sessionId: inputConfig } }
-  // );
 
   const utterance_type = result.answer;
   const selector = new Selector();
@@ -340,19 +355,17 @@ export async function POST(req: NextRequest) {
 
   const app = workflow.compile({ checkpointer: new MemorySaver() });
 
-  const messages = [
-    new SystemMessage("you're a good assistant"),
-    new HumanMessage("hi! I'm bob"),
-    new AIMessage("hi!"),
-    new HumanMessage("I like vanilla ice cream"),
-    new AIMessage("nice"),
-    new HumanMessage("whats 2 + 2"),
-    new AIMessage("4"),
-    new HumanMessage("thanks"),
-    new AIMessage("no problem!"),
-    new HumanMessage("having fun?"),
-    new AIMessage("yes!"),
-  ];
+  let messages: BaseMessage[] = [];
+
+  if (data) {
+    messages = data.map((chat) => {
+      if (chat.sender === "user") {
+        return new HumanMessage(chat.message);
+      } else {
+        return new AIMessage(chat.message);
+      }
+    });
+  }
 
   const config = { configurable: { thread_id: uuidv4() } };
   const input = {
@@ -362,6 +375,39 @@ export async function POST(req: NextRequest) {
   const output = await app.invoke(input, config);
 
   const message = output.messages[output.messages.length - 1].content;
+
+  const { error: userMessageInsertError } = await db.supabaseClient
+    .from("chat_log")
+    .insert([
+      {
+        user_name: userName,
+        message: inputMessage,
+        sender: "user",
+        talk_type: utterance_type,
+        action_type: selector.selectedAction,
+        response: message,
+      },
+    ]);
+  if (userMessageInsertError) {
+    console.error(userMessageInsertError);
+  }
+
+  const { error: systemMessageInsertError } = await db.supabaseClient
+    .from("chat_log")
+    .insert([
+      {
+        user_name: userName,
+        message: message,
+        sender: "system",
+        talk_type: utterance_type,
+        action_type: selector.selectedAction,
+        response: inputMessage,
+      },
+    ]);
+
+  if (systemMessageInsertError) {
+    console.error(systemMessageInsertError);
+  }
 
   return NextResponse.json({ message: message });
 }

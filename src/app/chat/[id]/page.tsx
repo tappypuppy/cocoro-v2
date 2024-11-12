@@ -1,22 +1,22 @@
 "use client";
 
 import { useState, useRef } from "react";
+import * as React from 'react'
 
-function Home() {
+function Home({ params }: { params: { id: number } }) {
   const [message, setMessage] = useState("");
   const textRef = useRef<HTMLInputElement>(null);
-  const configRef = useRef<HTMLInputElement>(null);
+  const userName = params.id;
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const inputMessage = textRef.current?.value;
-    const inputConfig = configRef.current?.value;
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ inputMessage, inputConfig }),
+      body: JSON.stringify({ inputMessage, userName }),
     });
     const data = await res.json();
     setMessage(data.message);
@@ -29,10 +29,6 @@ function Home() {
       <form onSubmit={onSubmit}>
         <label htmlFor="message">Message</label>
         <input type="text" id="message" ref={textRef} />
-        <br />
-        <label htmlFor="config">Config</label>
-        <input type="text" ref={configRef} />
-
         <button type="submit">Send</button>
       </form>
     </div>
