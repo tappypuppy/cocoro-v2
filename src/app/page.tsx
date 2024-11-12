@@ -1,38 +1,24 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useRef } from "react";
+import { useRouter } from "next/navigation";
 
 function Home() {
-  const [message, setMessage] = useState("");
-  const textRef = useRef<HTMLInputElement>(null);
-  const configRef = useRef<HTMLInputElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const inputMessage = textRef.current?.value;
-    const inputConfig = configRef.current?.value;
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ inputMessage, inputConfig }),
-    });
-    const data = await res.json();
-    setMessage(data.message);
+    const userName = nameRef.current?.value;
+    router.push(`/chat/${userName}`);
   };
 
   return (
     <div>
-      <h1>Home</h1>
-      <p>{message}</p>
+      <h1>名前を入力してください</h1>
       <form onSubmit={onSubmit}>
-        <label htmlFor="message">Message</label>
-        <input type="text" id="message" ref={textRef} />
-        <br />
-        <label htmlFor="config">Config</label>
-        <input type="text" ref={configRef} />
-
+        <label htmlFor="message">Name</label>
+        <input type="text" id="message" ref={nameRef} />
         <button type="submit">Send</button>
       </form>
     </div>
