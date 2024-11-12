@@ -19,12 +19,13 @@ import {
   MessagesAnnotation,
   Annotation,
 } from "@langchain/langgraph";
-import { v4 as uuidv4 } from "uuid";
 
 import Selector from "@/class/selector/selector";
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
+  const { inputMessage, inputConfig } = await req.json();
+
+  console.log(inputMessage);
 
   const llm = new ChatOpenAI({
     model: "gpt-4o-mini",
@@ -61,21 +62,6 @@ export async function POST(req: NextRequest) {
     "出力は、neutral, change, sustainのいずれかです" +
     "\n\n" +
     "in Japanese";
-
-  const prompt = ChatPromptTemplate.fromMessages([
-    ["system", systemPrompt],
-    ["human", "{input}"],
-  ]);
-
-  const questionAnswerChain = await createStuffDocumentsChain({
-    llm,
-    prompt,
-  });
-
-  const ragChain = await createRetrievalChain({
-    retriever,
-    combineDocsChain: questionAnswerChain,
-  });
 
   const contextualizeQSystemPrompt =
     "Given a chat history and the latest user question " +
@@ -123,21 +109,21 @@ export async function POST(req: NextRequest) {
   });
 
   const result = await conversationalRagChain.invoke(
-    { input: "タバコを吸うのをやめたいです。" },
-    { configurable: { sessionId: "abc" } }
+    { input: inputMessage },
+    { configurable: { sessionId: inputConfig } }
   );
 
   const utterance_type = result.answer;
   const selector = new Selector();
 
   if (utterance_type === "neutral") {
-    const action = selector.selectAction("N");
+    selector.selectAction("N");
     selector.lastAction = "N";
   } else if (utterance_type === "change") {
-    const action = selector.selectAction("CT");
+    selector.selectAction("CT");
     selector.lastAction = "CT";
   } else if (utterance_type === "sustain") {
-    const action = selector.selectAction("ST");
+    selector.selectAction("ST");
     selector.lastAction = "ST";
   }
 
@@ -341,18 +327,19 @@ export async function POST(req: NextRequest) {
 
   const app = workflow.compile({ checkpointer: new MemorySaver() });
 
-  const config = { configurable: { thread_id: uuidv4() } };
+  const config = { configurable: { thread_id: inputConfig } };
   const input = {
     messages: [
       {
         role: "user",
-        content: "タバコを吸うのをやめたいです。",
+        content: inputMessage,
       },
     ],
     additinalContext: selectorDict[selector.selectedAction],
   };
   const output = await app.invoke(input, config);
-  console.log(output.messages[output.messages.length - 1]);
 
-  return NextResponse.json({ message: body.message });
+  const message = output.messages[output.messages.length - 1].content;
+
+  return NextResponse.json({ message: message });
 }
