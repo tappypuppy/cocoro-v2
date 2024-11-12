@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, use } from "react";
 import * as React from 'react'
 
-function Home({ params }: { params: { id: number } }) {
+function Home(props: { params: Promise<{ id: number }> }) {
+  const params = use(props.params);
   const [message, setMessage] = useState("");
   const textRef = useRef<HTMLInputElement>(null);
   const userName = params.id;
