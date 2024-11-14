@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
     "\n\n" +
     "{context}" +
     "classificationの種類は、neutral, change, sustainの3種類から選んでください" +
-    "出力は、neutral, change, sustainのいずれかです" +
+    "出力は、neutral, change, sustainのいずれかのみを返してください" +
     "\n\n" +
     "in Japanese";
 
@@ -118,9 +118,10 @@ export async function POST(req: NextRequest) {
   if (data) {
     chatHistory = data.map((chat) => {
       if (chat.sender === "user") {
-        return new HumanMessage(chat.message);
+        return new HumanMessage(
+          "talk_type: " + chat.talk_type + ", chat_message: " +  chat.message);
       } else {
-        return new AIMessage(chat.message);
+        return new AIMessage(chat.talk_type);
       }
     });
   }

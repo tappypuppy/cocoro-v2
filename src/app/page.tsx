@@ -10,7 +10,7 @@ function Home() {
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const userName = nameRef.current?.value;
-    router.push(`/chat/${userName}`);
+    router.push(`/dev/${userName}`);
   };
 
   return (
