@@ -1,0 +1,35 @@
+.circle {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background-color: #4a90e2; /* メインの円の色 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.3s ease;
+  }
+  
+  .playing {
+    animation: pulse 1.5s infinite;
+  }
+  
+  @keyframes pulse {
+    0% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.2); /* 拡大サイズ */
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+  
+  .innerCircle {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-color: #fff; /* 内側の円の色 */
+  }
+  
